@@ -1,5 +1,3 @@
-require 'pry-byebug'
-
 def randomize(array)
   4.times do
     array.push(rand(6) + 1)
@@ -44,7 +42,7 @@ class Guesser
 
   def set_guess
     begin
-    puts "\nGuess the Mastermind's code!\n" << "Red:".red << " [1] | " <<
+    puts "\nGuess the Mastermind's code! (#{@guesses} guesses left)\n" << "Red:".red << " [1] | " <<
     "Blue:".blue << " [2] | " << "Green:".green << " [3] | " <<
     "Brown:".brown << " [4] | " << "Cyan:".cyan << " [5] | " <<
     "Magenta:".magenta << " [6]\n" <<
@@ -71,9 +69,8 @@ class Guesser
     else
       @correct_guess = code
       almost_right = []
-      #binding.pry
       @current_guess.each_with_index do |item, idx|
-        if code.include?(item) && code[idx] != item
+        if code.include?(item) && code[idx] != item && code.count { |i| i == item } > @current_guess.count { |i| i == item }
           almost_right.push(item)
           @num_almost_correct += 1
         elsif item == code[idx]
@@ -85,7 +82,7 @@ class Guesser
   end
 
   def print_guess(almost_right)
-    puts "\nYour guess: #{@current_guess}\n
+    puts "\nGuess: #{@current_guess}\n
     Correct color, correct placement: #{@num_correct}\n
     Correct color, incorrect placement: #{@num_almost_correct}\n\n"
     unless gameover == true
@@ -104,7 +101,10 @@ class Guesser
     almost_right = check_guess(code)
     print_guess(almost_right)
     @guesses -= 1
-    defeat if @guesses == 0
+    if @guesses == 0
+      defeat
+      puts "\nCorrect code: #{code}\n\n"
+    end
   end
 end
 
@@ -112,27 +112,28 @@ class Computer < Guesser
   def set_guess(code)
     if @current_guess.empty?
       randomize(@current_guess)
-      #binding.pry
     else
       last_guess = @current_guess
-      #almost_right = check_guess(code)
+      almost = @almost_right.clone
       last_guess.each_with_index do |guess, idx|
         if guess == @correct_guess[idx]
           @current_guess[idx] = guess
+        elsif almost.length > 0
+          @current_guess[idx] = almost[rand(@almost_right.length - 1)]
+          almost.delete(@current_guess[idx])
         else
           @current_guess[idx] = rand(6) + 1
         end
       end
-      #binding.pry
     end
   end
 
   def guess(code)
     set_guess(code)
-    almost_right = check_guess(code)
+    @almost_right = check_guess(code)
     @guesses -= 1
-    defeat if @guesses == 0
-    print_guess(almost_right.flatten)
+    defeat if @guesses == 0 && @gameover == false
+    print_guess(@almost_right.flatten)
   end
 end
 
@@ -142,7 +143,6 @@ class Mastermind
     @code = code
     randomize(@code) if @code == []
   end
-  #radomize(@code)
 end
 
 def run_game
@@ -160,7 +160,6 @@ def run_game
     comp = Mastermind.new
     player = Guesser.new(12, 4)
     until player.gameover
-      #p comp.code
       player.guess(comp.code)
     end
   else
@@ -179,12 +178,24 @@ def run_game
     player = Mastermind.new(code)
     comp = Computer.new(12, 4)
     until comp.gameover
-      p player.code
       comp.guess(player.code)
     end
   end
 end
 
-
-
-run_game
+run = true
+while run == true
+  run_game
+  begin
+  puts "\nWould you like to play again? [y/n]\n"
+  choice = gets.chomp
+  if choice == 'n'
+    run = false
+  elsif choice != 'y'
+    raise StandardError
+  end
+  rescue
+    puts "\nInvalid choice! Please try again.\n"
+    retry
+  end
+end
